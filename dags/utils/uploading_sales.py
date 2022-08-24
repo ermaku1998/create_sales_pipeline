@@ -19,7 +19,6 @@ postgre_engine = create_engine(postgre_url(), pool_pre_ping = True, echo = True)
 chunksize = 3000000
 
 
-
 # Делаем drop pmix_sales
 with postgre_engine.connect() as con:
     rs = con.execute('''
