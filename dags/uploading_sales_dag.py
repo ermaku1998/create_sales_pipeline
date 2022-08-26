@@ -1,13 +1,14 @@
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
+from datetime import datetime, timedelta
+
 from utils.uploading_sales import uploading_sales
-import datetime
 
 
 default_args= {
                'owner': 'Artem',
                'email_on_failure': False,
-               'start_date': datetime.datetime(2022, 8, 26, 16, 30, 0)
+               'start_date': datetime(2022, 8, 26, 20, 0, 0)
               }
 
 
@@ -16,12 +17,9 @@ with DAG(
          description='Uploading the general sales table for the last 40 days',
          schedule_interval=timedelta(days=1),
          default_args=default_args, 
-         catchup=False
+         catchup=False,
+         tags=['sales', 'pmix']
         ) as dag:       
-
-  def check_function():
-        print("I'm working")
-        pass
       
   uploading = PythonOperator(
         task_id='upload',
