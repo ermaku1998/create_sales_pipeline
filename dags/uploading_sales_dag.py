@@ -10,7 +10,7 @@ from datetime import datetime
 default_args= {
                'owner': 'Artem',
                'email_on_failure': False,
-               'start_date': datetime(2022, 08, 25)
+               'start_date': datetime(2022, 8, 25)
               }
 
 
@@ -24,8 +24,8 @@ with DAG(
             
 with TaskGroup('uploading_sales') as uploading_sales:
         uploading = PythonOperator(
-            task_id = "uploading",
-            py = 'dags/utils/uploading_sales.py'
+                                   task_id = "uploading",
+                                   py = '/home/sassci/jupyter_services/artem/uploading_sales_dag.py'
                                   )
        
  uploading    
