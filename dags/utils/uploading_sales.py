@@ -4,7 +4,6 @@ import pandas as pd
 from tqdm.notebook import tqdm
 
 from sqlalchemy.engine import create_engine
-sys.path.append('/home/sassci/jupyter_services')
 from connections.connections import oracle_url, postgre_url
 
 from typing import Generator
@@ -13,20 +12,22 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime
 
-def uploading_sales():
-    oracle_engine = create_engine(oracle_url())
-    postgre_engine = create_engine(postgre_url(), pool_pre_ping = True, echo = True)
-    chunksize = 3000000
+    
+oracle_engine = create_engine(oracle_url())
+postgre_engine = create_engine(postgre_url(), pool_pre_ping = True, echo = True)
+chunksize = 3000000
 
 
-    # Делаем drop pmix_sales
+# Делаем drop pmix_sales
+def drop_pmix_sales():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             DROP TABLE pmix_sales;
                          ''')
 
 
-    # Создаём генератор pmix_sales
+# Создаём генератор pmix_sales и выгружаем
+def pmix_sales_upload():
     qry = f'''
               SELECT product_id, pbo_location_id, sales_dt, gross_sales_amt, 
                      gross_sales_amt_discount, sales_qty, sales_qty_discount
@@ -34,25 +35,24 @@ def uploading_sales():
               WHERE CHANNEL_CD = 'ALL' and sales_dt <> current_date
            '''
     table_generator = pd.read_sql_query(qry, oracle_engine, chunksize = 1500000)
-
-
-     # Выгружаем pmix_sales
+ 
     for table in tqdm(table_generator):
         srtd_table = table[['product_id', 'pbo_location_id', 'sales_dt', 'gross_sales_amt', 
                             'gross_sales_amt_discount', 'sales_qty', 'sales_qty_discount']].copy()
-        print(f'table size: {srtd_table.shape}')
         srtd_table['sales_dt'] = pd.to_datetime(srtd_table['sales_dt'])
         srtd_table.to_sql('pmix_sales', postgre_engine, if_exists='append', index=False)
 
 
-    # Дропаем старый dates_last40
+# Дропаем старый dates_last40
+def drop_dates_last40():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             DROP TABLE dates_last40;
                          ''')
 
 
-    # Создаём столбец с датами за последние 40 дней
+# Создаём столбец с датами за последние 40 дней
+def create_dates_last40():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             CREATE TABLE dates_last40 as
@@ -61,7 +61,8 @@ def uploading_sales():
                          ''')
 
 
-    # Удаляем строки из pmix_sales_history за последние 40 дней
+# Удаляем строки из pmix_sales_history за последние 40 дней
+def delete_from_pmix_sales_hist():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             DELETE FROM pmix_sales_history
@@ -69,7 +70,8 @@ def uploading_sales():
                          ''')
 
 
-    # Добавляем эти строки в pmix_sales_history
+# Добавляем эти строки в pmix_sales_history
+def add_to_pmix_sales_hist():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             INSERT INTO pmix_sales_history
@@ -78,45 +80,44 @@ def uploading_sales():
                          ''')
 
 
-    # Делаем drop assort_matrix 
+# Делаем drop assort_matrix
+def drop_assort_matrix():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             DROP TABLE assort_matrix_history;
                          ''')
 
 
-    # Импортируем ассортиментную таблицу
+# Импортируем ассортиментную таблицу
+def assort_matrix_upload():
     qry = f'''
     SELECT *
     FROM SAS_INTERF.IA_ASSORT_MATRIX_HISTORY
            '''
-
     table_generator = pd.read_sql_query(qry, oracle_engine, chunksize=chunksize)
 
     for table in tqdm(table_generator):
-        print(f'table size: {table.shape}')
-
         table.to_sql('assort_matrix_history', postgre_engine, if_exists='append', index=False)
 
 
-    # Дропаем прайсовую матрицу
+# Дропаем прайсовую матрицу
+def drop_price_hist():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             DROP TABLE price_history;
                          ''')
-
-
-    # Создаём функцию для приведения к нижнему регистру
+        
+        
+# Импортируем прайсовую таблицу
+def price_hist_upload():
     def lower_clmns_names(clmns: list) -> dict:
         rnm_clmns = [clmn.lower() for clmn in clmns]
         rnm_clmns_d = dict(zip(clmns, rnm_clmns))
         return rnm_clmns_d
 
-
-    # Импортируем прайсовую таблицу
     qry = f'''
-    SELECT product_id, pbo_location_id, gross_price_amt, start_dt, end_dt
-    FROM SAS_INTERF.IA_PRICE_HISTORY
+              SELECT product_id, pbo_location_id, gross_price_amt, start_dt, end_dt
+              FROM SAS_INTERF.IA_PRICE_HISTORY
            '''
     table_generator = pd.read_sql_query(qry, oracle_engine, chunksize=chunksize)
 
@@ -129,14 +130,16 @@ def uploading_sales():
         table.to_sql('price_history', postgre_engine, if_exists='append', index=False)
 
 
-    # Дропаем skelet_assort_last40
+# Дропаем skelet_assort_last40
+def drop_assort_last40():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             DROP TABLE skelet_assort_last40
                          ''') 
 
 
-    # Создаем skelet_assort_last40 как ассортиментная матрица за последние 40 дней
+# Создаем skelet_assort_last40 как ассортиментная матрица за последние 40 дней
+def create_assort_last40():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             CREATE TABLE skelet_assort_last40 as
@@ -146,15 +149,17 @@ def uploading_sales():
                             ORDER BY dt;
                          ''')
 
-
-    # Дропаем skelet_prhist_last40
+        
+# Дропаем skelet_prhist_last40
+def drop_prhist_last40():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             DROP TABLE skelet_prhist_last40
                          ''')
 
 
-    # Создаем skelet_prhist_last40
+# Создаем skelet_prhist_last40
+def create_prhist_last40():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             CREATE TABLE skelet_prhist_last40 as
@@ -165,14 +170,16 @@ def uploading_sales():
                          ''')
 
 
-    # Дропаем skelet_assort_prhist_last40
+# Дропаем skelet_assort_prhist_last40
+def drop_assort_prhist_last40():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             DROP TABLE skelet_assort_prhist_last40
                          ''')
 
 
-    # Создаем таблицу из ассортиментной и прайсовой с уникальными продукт-пбо-дата за последние 40 дней
+# Создаем таблицу из ассортиментной и прайсовой с уникальными продукт-пбо-дата за последние 40 дней
+def create_assort_prhist_last40():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             CREATE TABLE skelet_assort_prhist_last40 as
@@ -184,7 +191,8 @@ def uploading_sales():
                          ''')
 
 
-    # Удаляем строки из sales за последние 40 дней
+# Удаляем строки из sales за последние 40 дней
+def delete_from_sales():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             DELETE FROM sales
@@ -192,7 +200,8 @@ def uploading_sales():
                          ''')
 
 
-    # Создаем итоговую таблицу из ассортиментной, прайсовой и pmix с уникальными продукт-пбо-дата
+# Создаем итоговую таблицу из ассортиментной, прайсовой и pmix с уникальными продукт-пбо-дата
+def add_to_sales():
     with postgre_engine.connect() as con:
         rs = con.execute('''
                             INSERT INTO sales
