@@ -27,7 +27,7 @@ def drop_pmix_sales():
 
 
 # Создаём генератор pmix_sales и выгружаем
-def pmix_sales_upload():
+def upload_pmix_sales():
     qry = f'''
               SELECT product_id, pbo_location_id, sales_dt, gross_sales_amt, 
                      gross_sales_amt_discount, sales_qty, sales_qty_discount
@@ -89,7 +89,7 @@ def drop_assort_matrix():
 
 
 # Импортируем ассортиментную таблицу
-def assort_matrix_upload():
+def upload_assort_matrix():
     qry = f'''
     SELECT *
     FROM SAS_INTERF.IA_ASSORT_MATRIX_HISTORY
@@ -109,7 +109,7 @@ def drop_price_hist():
         
         
 # Импортируем прайсовую таблицу
-def price_hist_upload():
+def upload_price_hist():
     def lower_clmns_names(clmns: list) -> dict:
         rnm_clmns = [clmn.lower() for clmn in clmns]
         rnm_clmns_d = dict(zip(clmns, rnm_clmns))
