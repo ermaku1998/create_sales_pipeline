@@ -7,19 +7,22 @@ import datetime
 default_args= {
                'owner': 'Artem',
                'email_on_failure': False,
-               'start_date': datetime.datetime(2022, 8, 25)
+               'start_date': datetime.datetime(2022, 8, 26, 16, 30, 0)
               }
 
 
 with DAG(
          "uploading_sales_dag",
          description='Uploading the general sales table for the last 40 days',
-         schedule_interval='@daily',
+         schedule_interval=timedelta(days=1),
          default_args=default_args, 
          catchup=False
         ) as dag:       
 
-  
+  def check_function():
+        print("I'm working")
+        pass
+      
   uploading = PythonOperator(
         task_id='upload',
         python_callable=uploading_sales
