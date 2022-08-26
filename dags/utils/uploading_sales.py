@@ -73,7 +73,7 @@ def from_oracle_to_postgre():
            '''
     table_generator = pd.read_sql_query(qry, oracle_engine, chunksize = 1500000)
  
-    for table in tqdm(table_generator):
+    for table in table_generator:
         srtd_table = table[['product_id', 'pbo_location_id', 'sales_dt', 'gross_sales_amt', 
                             'gross_sales_amt_discount', 'sales_qty', 'sales_qty_discount']].copy()
         srtd_table['sales_dt'] = pd.to_datetime(srtd_table['sales_dt'])
@@ -103,7 +103,7 @@ def from_oracle_to_postgre():
            '''
     table_generator = pd.read_sql_query(qry, oracle_engine, chunksize=chunksize)
 
-    for table in tqdm(table_generator):
+    for table in table_generator:
         clmn_names = lower_clmns_names(table.columns)
         table = table.rename(columns=clmn_names)
         table['start_dt'] = pd.to_datetime(table['start_dt'])
