@@ -49,9 +49,17 @@ with DAG(
         task_id='drop_assort_prhist_last40',
         python_callable=u.drop_assort_prhist_last40
                             )
-  oracle_to_postgre = PythonOperator(
-        task_id='from_oracle_to_postgre',
-        python_callable=u.from_oracle_to_postgre
+  pmix_sales_upload = PythonOperator(
+        task_id='upload_pmix_sales',
+        python_callable=u.upload_pmix_sales
+                            )  
+  assort_matrix_upload = PythonOperator(
+        task_id='upload_assort_matrix',
+        python_callable=u.upload_assort_matrix
+                            )  
+  price_history_upload = PythonOperator(
+        task_id='upload_price_history',
+        python_callable=u.upload_price_history
                             )  
   create = PythonOperator(
         task_id='creating',
@@ -63,4 +71,4 @@ with DAG(
                             ) 
   
   
-  drop1 >> drop2 >> drop3 >> drop4 >> drop5 >> drop6 >> drop7 >> oracle_to_postgre >> create >> insert_into_sales
+  drop1 >> drop2 >> drop3 >> drop4 >> drop5 >> drop6 >> drop7 >> pmix_sales_upload >> assort_matrix_upload >> price_history_upload >> create >> insert_into_sales
