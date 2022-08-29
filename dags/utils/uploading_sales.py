@@ -1,7 +1,6 @@
 import sys
 import os
 import pandas as pd
-from tqdm.notebook import tqdm
 
 from sqlalchemy.engine import create_engine
 from connections.connections import oracle_url, postgre_url
@@ -15,7 +14,7 @@ from datetime import datetime
     
 oracle_engine = create_engine(oracle_url())
 postgre_engine = create_engine(postgre_url(), pool_pre_ping = True, echo = True)
-chunksize = 3000000
+chunksize = 1000000
 
 
 # Делаем drop pmix_sales
@@ -60,48 +59,45 @@ def drop_assort_prhist_last40():
         rs = con.execute('''
                             DROP TABLE skelet_assort_prhist_last40;
                          ''')
+   
 
-        
-# Выгружаем таблицы из оракла
-def from_oracle_to_postgre():
-    # Импортируем pmix_sales
-    qry = f'''
-              SELECT product_id, pbo_location_id, sales_dt, gross_sales_amt, 
-                     gross_sales_amt_discount, sales_qty, sales_qty_discount
+# Выгружаем таблицы из оракла:
+# Импортируем pmix_sales
+def upload_pmix_sales():
+    qry = '''
+              SELECT product_id, pbo_location_id, sales_dt, gross_sales_amt, gross_sales_amt_discount, sales_qty, sales_qty_discount
               FROM SAS_INTERF.IA_PMIX_SALES
-              WHERE CHANNEL_CD = 'ALL' and sales_dt <> current_date;
+              WHERE CHANNEL_CD = 'ALL' and sales_dt <> current_date
            '''
-    table_generator = pd.read_sql_query(qry, oracle_engine, chunksize = 1500000)
- 
+    table_generator = pd.read_sql_query(qry, oracle_engine, chunksize=chunksize)
+    
     for table in table_generator:
-        srtd_table = table[['product_id', 'pbo_location_id', 'sales_dt', 'gross_sales_amt', 
-                            'gross_sales_amt_discount', 'sales_qty', 'sales_qty_discount']].copy()
+        srtd_table = table[['product_id', 'pbo_location_id', 'sales_dt', 'gross_sales_amt', 'gross_sales_amt_discount', 'sales_qty', 'sales_qty_discount']].copy()
         srtd_table['sales_dt'] = pd.to_datetime(srtd_table['sales_dt'])
         srtd_table.to_sql('pmix_sales', postgre_engine, if_exists='append', index=False)
 
-        
-    # Импортируем ассортиментную таблицу
-    qry = f'''
+# Импортируем ассортиментную таблицу
+def upload_assort_matrix():    
+    qry = '''
     SELECT *
     FROM SAS_INTERF.IA_ASSORT_MATRIX_HISTORY
            '''
     table_generator = pd.read_sql_query(qry, oracle_engine, chunksize=chunksize)
-
-    for table in tqdm(table_generator):
+    for table in table_generator:
         table.to_sql('assort_matrix_history', postgre_engine, if_exists='append', index=False)
         
-        
-    # Импортируем прайсовую таблицу
-    def lower_clmns_names(clmns: list) -> dict:
-        rnm_clmns = [clmn.lower() for clmn in clmns]
-        rnm_clmns_d = dict(zip(clmns, rnm_clmns))
-        return rnm_clmns_d
-
+# Импортируем прайсовую таблицу  
+def upload_price_history(): 
     qry = f'''
               SELECT product_id, pbo_location_id, gross_price_amt, start_dt, end_dt
               FROM SAS_INTERF.IA_PRICE_HISTORY
            '''
     table_generator = pd.read_sql_query(qry, oracle_engine, chunksize=chunksize)
+    
+    def lower_clmns_names(clmns: list) -> dict:
+        rnm_clmns = [clmn.lower() for clmn in clmns]
+        rnm_clmns_d = dict(zip(clmns, rnm_clmns))
+        return rnm_clmns_d 
 
     for table in table_generator:
         clmn_names = lower_clmns_names(table.columns)
