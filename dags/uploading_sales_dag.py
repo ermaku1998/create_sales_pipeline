@@ -5,14 +5,6 @@ from datetime import datetime, timedelta
 from utils import uploading_sales as u
 
 
-
-
-
-
-
-
-
-
 default_args= {
                'owner': 'Artem',
                'email_on_failure': False,
